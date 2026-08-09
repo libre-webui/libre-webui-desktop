@@ -3,7 +3,7 @@
   "version": "0.21.1",
   "description": "Libre WebUI Desktop Application",
   "main": "electron/main.js",
-  "author": "Kroonen AI, Inc.",
+  "author": "Libre WebUI Contributors <contact@librewebui.org>",
   "license": "Apache-2.0",
   "private": true,
   "librewebui": {

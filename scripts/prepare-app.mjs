@@ -35,8 +35,11 @@ if (!pin?.repository || !pin?.tag) {
 const checkout = path.join(root, '.app-src');
 const stage = path.join(root, 'app');
 
+// Windows resolves npm through cmd.exe (npm.cmd), which execFileSync only
+// finds with a shell. The arguments here are all our own constants.
+const shell = process.platform === 'win32';
 const run = (command, args, options = {}) =>
-  execFileSync(command, args, { stdio: 'inherit', ...options });
+  execFileSync(command, args, { stdio: 'inherit', shell, ...options });
 
 const checkoutTag = () => {
   try {
