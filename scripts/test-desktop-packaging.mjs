@@ -1,0 +1,111 @@
+/*
+ * Libre WebUI Desktop
+ * Copyright (C) 2025 Kroonen AI, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at:
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import test from 'node:test';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(__dirname, '..');
+
+function readRepoFile(relativePath) {
+  return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
+}
+
+test('macOS packaging uses intentional ad-hoc signing', () => {
+  const builderConfig = readRepoFile('electron-builder.yml');
+  const entitlements = readRepoFile('electron/entitlements.mac.plist');
+
+  assert.match(builderConfig, /^\s+identity: '-'$/m);
+  assert.match(builderConfig, /^\s+notarize: false$/m);
+  assert.match(
+    entitlements,
+    /<key>com\.apple\.security\.cs\.disable-library-validation<\/key>\s*<true\/>/
+  );
+});
+
+test('the preload keeps draggable regions out and tags the runtime', () => {
+  const preload = readRepoFile('electron/preload.js');
+  assert.doesNotMatch(preload, /-webkit-app-region:\s*drag/);
+  assert.match(preload, /dataset\.runtime = 'electron'/);
+});
+
+test('packaging pulls the frontend from the staged app build', () => {
+  const builderConfig = readRepoFile('electron-builder.yml');
+  assert.match(builderConfig, /^\s+- from: app\/frontend\/dist$/m);
+  assert.match(builderConfig, /^\s+- from: app\/plugins$/m);
+
+  const prepare = readRepoFile('scripts/prepare-app.mjs');
+  assert.match(prepare, /ELECTRON_BUILD: 'true'/);
+
+  const pkg = JSON.parse(readRepoFile('package.json'));
+  assert.match(pkg.librewebui.tag, /^v\d+\.\d+\.\d+$/);
+  assert.equal(pkg.main, 'electron/main.js');
+});
+
+test('macOS DMG uses the branded Libre WebUI installer layout', () => {
+  const builderConfig = readRepoFile('electron-builder.yml');
+  const backgroundSvg = readRepoFile('electron/assets/dmg-background.svg');
+  const iconGenerator = readRepoFile('scripts/generate-icons.js');
+  const artifactFinalizer = readRepoFile('scripts/finalize-macos-artifact.cjs');
+  const dmgFinalizer = readRepoFile('scripts/finalize-macos-dmg.sh');
+  const finderMetadata = readRepoFile('scripts/macos-dmg-finder.py');
+  const artifactVerifier = readRepoFile('scripts/verify-macos-artifact.sh');
+
+  assert.match(builderConfig, /^\s+title: 'Install Libre WebUI'$/m);
+  assert.match(
+    builderConfig,
+    /^artifactBuildCompleted: scripts\/finalize-macos-artifact\.cjs$/m
+  );
+  assert.match(
+    builderConfig,
+    /^\s+background: electron\/assets\/dmg-background\.tiff$/m
+  );
+  assert.match(builderConfig, /^\s+icon: null$/m);
+  assert.match(builderConfig, /^\s+iconSize: 96$/m);
+  assert.match(builderConfig, /^\s+iconTextSize: 12$/m);
+  assert.match(builderConfig, /^\s+- x: 180$/m);
+  assert.match(builderConfig, /^\s+- x: 580$/m);
+  assert.match(builderConfig, /^\s+y: 300$/m);
+  assert.match(
+    builderConfig,
+    /^\s+- from: electron\/assets\/dmg-background\.tiff$/m
+  );
+  assert.match(builderConfig, /^\s+width: 760$/m);
+  assert.match(builderConfig, /^\s+height: 500$/m);
+  assert.match(backgroundSvg, /<svg width="760" height="500"/);
+  assert.match(backgroundSvg, /Make whatever/);
+  assert.match(backgroundSvg, /comes next\./);
+  assert.match(iconGenerator, /dmg-art\.png/);
+  assert.match(iconGenerator, /const dmgWidth = 760/);
+  assert.match(iconGenerator, /const dmgHeight = 500/);
+  assert.match(iconGenerator, /const dmgArtHeight = 176/);
+  assert.match(iconGenerator, /const dmgDensity = 72/);
+  assert.match(iconGenerator, /dmg-background@2x\.png/);
+  assert.match(iconGenerator, /dmg-background\.tiff/);
+  assert.match(iconGenerator, /tiffutil/);
+  assert.match(iconGenerator, /\.withMetadata\(\{ density \}\)/);
+  assert.match(artifactFinalizer, /finalize-macos-dmg\.sh/);
+  assert.match(artifactFinalizer, /buildBlockMap/);
+  assert.match(dmgFinalizer, /macos-dmg-finder\.py/);
+  assert.match(dmgFinalizer, /unlink "\$\{background_path\}"/);
+  assert.match(finderMetadata, /backgroundImageAlias/);
+  assert.match(finderMetadata, /Alias\.for_file/);
+  assert.match(artifactVerifier, /background_dpi/);
+  assert.match(artifactVerifier, /root_item_count/);
+  assert.match(artifactVerifier, /must not expose Finder background/);
+  assert.ok(
+    fs.existsSync(path.join(repoRoot, 'electron/assets/dmg-art.png')),
+    'the generated DMG artwork must be committed'
+  );
+});

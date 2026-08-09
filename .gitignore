@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# Pinned libre-webui checkout and the staged build it produces
+.app-src/
+app/
+
+# Build output
+dist-electron/
+
+# Logs and OS noise
+*.log
+.DS_Store
