@@ -17,6 +17,17 @@ npm test               # packaging and signing guards
 
 To ship a new app version: bump `version` and `librewebui.tag` together, then build.
 
+## Release flow
+
+The main repository's release workflow dispatches this repo's Build workflow with the new tag (`repository_dispatch`, type `release`). The workflow builds macOS, Windows, and Linux installers and uploads them onto that tag's release in `libre-webui/libre-webui`, so download URLs and the Homebrew cask stay exactly where they always were. It can also be run by hand from the Actions tab with a tag input.
+
+Two secrets make the hand-off work, both fine-grained PATs:
+
+- `DESKTOP_DISPATCH_TOKEN` in **libre-webui/libre-webui**: contents read/write on this repo, used only to send the dispatch.
+- `RELEASE_UPLOAD_TOKEN` in **this repo**: contents read/write on `libre-webui/libre-webui`, used to upload release assets.
+
+Without the tokens nothing breaks: the release workflow prints a warning and you start the build manually; the build keeps its artifacts on the workflow run.
+
 ## Development
 
 Run the main libre-webui repo dev servers (`npm run dev`), then:

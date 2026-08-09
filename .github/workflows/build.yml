@@ -1,0 +1,115 @@
+name: Build
+
+# Builds the desktop installers. Dispatched by the main repository's release
+# workflow with a tag, or run by hand. When a tag is present and the upload
+# token is configured, the artifacts land on that tag's GitHub release in
+# libre-webui/libre-webui, which is where the download links and the Homebrew
+# cask point.
+
+on:
+  repository_dispatch:
+    types: [release]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'libre-webui tag to build (empty builds the pinned tag without uploading)'
+        required: false
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22.22'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm test
+
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: mac
+            assets: 'dist-electron/*.dmg dist-electron/*.zip'
+          - os: windows-latest
+            platform: win
+            assets: 'dist-electron/*.exe'
+          - os: ubuntu-latest
+            platform: linux
+            assets: 'dist-electron/*.AppImage dist-electron/*.deb'
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22.22'
+          cache: 'npm'
+
+      - name: Resolve tag
+        id: tag
+        env:
+          DISPATCH_TAG: ${{ github.event.client_payload.tag }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          TAG="${DISPATCH_TAG:-$INPUT_TAG}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if [ -n "$TAG" ]; then
+            echo "Building $TAG"
+          else
+            echo "Building the pinned tag from package.json"
+          fi
+
+      - run: npm ci
+
+      - name: Pin the requested release
+        if: steps.tag.outputs.tag != ''
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          npm pkg set librewebui.tag="$TAG"
+          npm pkg set version="${TAG#v}"
+
+      - name: Build installers
+        run: npm run build:${{ matrix.platform }}
+
+      - name: Verify macOS application signature
+        if: matrix.platform == 'mac'
+        run: npm run verify:mac
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-${{ matrix.platform }}
+          path: |
+            dist-electron/*.dmg
+            dist-electron/*.zip
+            dist-electron/*.exe
+            dist-electron/*.AppImage
+            dist-electron/*.deb
+          if-no-files-found: error
+
+      - name: Upload to the libre-webui release
+        if: steps.tag.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_UPLOAD_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::RELEASE_UPLOAD_TOKEN is not set; artifacts stay on this workflow run."
+            exit 0
+          fi
+          gh release upload "$TAG" ${{ matrix.assets }} \
+            --repo libre-webui/libre-webui --clobber
