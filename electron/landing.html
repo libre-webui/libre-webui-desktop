@@ -52,27 +52,6 @@
         background: url('assets/landing/horizon.webp') center / cover;
       }
 
-      .hero-motion {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        transition: opacity 1.6s ease;
-      }
-
-      /* Played through: the reference still behind it takes over. */
-      .hero-motion.is-settled {
-        opacity: 0;
-      }
-
-      /* The still frame is the same picture; motion is decoration. */
-      @media (prefers-reduced-motion: reduce) {
-        .hero-motion {
-          display: none;
-        }
-      }
-
       .hero-shade {
         position: absolute;
         inset: 0;
@@ -435,14 +414,6 @@
   </head>
   <body>
     <div class="hero" role="presentation">
-      <video
-        class="hero-motion"
-        src="assets/landing/horizon.mp4"
-        poster="assets/landing/horizon.webp"
-        autoplay
-        muted
-        playsinline
-      ></video>
       <div class="hero-shade"></div>
     </div>
     <div class="drag-strip"></div>
@@ -757,15 +728,6 @@
       urlInput.addEventListener('keydown', event => {
         if (event.key === 'Enter') connect();
       });
-
-      // --- Hero motion settles on the still ----------------------------------
-
-      const heroMotion = document.querySelector('.hero-motion');
-      heroMotion.addEventListener(
-        'ended',
-        () => heroMotion.classList.add('is-settled'),
-        { once: true }
-      );
 
       // --- Version in the footer ---------------------------------------------
 
