@@ -20,7 +20,7 @@ def verify_background_alias(store_path, background_path):
         alias = Alias.from_bytes(settings["backgroundImageAlias"])
 
     expected_suffix = (
-        "/Libre WebUI Frontend.app/Contents/Resources/"
+        "/Libre WebUI Desktop.app/Contents/Resources/"
         + os.path.basename(background_path)
     )
     if alias.target.filename != os.path.basename(background_path):

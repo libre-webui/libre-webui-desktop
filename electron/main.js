@@ -25,6 +25,25 @@ const http = require('http');
 const https = require('https');
 const { spawn } = require('child_process');
 
+// The app was renamed from "Libre WebUI Frontend" to "Libre WebUI Desktop",
+// which moves the userData directory. Carry over the old directory once so
+// existing sessions and the saved server URL survive the rename. Must run
+// before anything touches userData (session storage is created lazily).
+if (app.isPackaged) {
+  try {
+    const oldUserData = path.join(
+      app.getPath('appData'),
+      'Libre WebUI Frontend'
+    );
+    const newUserData = app.getPath('userData');
+    if (fs.existsSync(oldUserData) && !fs.existsSync(newUserData)) {
+      fs.renameSync(oldUserData, newUserData);
+    }
+  } catch (err) {
+    console.error('Failed to migrate userData from old app name:', err);
+  }
+}
+
 // Get icon path for Linux (icons are in extraResources for production)
 const getIconPath = () => {
   const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
