@@ -18,6 +18,12 @@ on:
   push:
     branches: [main]
 
+# The upload step authenticates to libre-webui/libre-webui with its own
+# RELEASE_UPLOAD_TOKEN, so the workflow's GITHUB_TOKEN never needs more than
+# read access to this repository.
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
