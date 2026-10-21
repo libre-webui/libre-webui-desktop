@@ -22,9 +22,9 @@
     "test": "node --test scripts/test-desktop-packaging.mjs"
   },
   "devDependencies": {
-    "electron": "41.10.3",
+    "electron": "41.10.7",
     "electron-builder": "26.15.7",
     "png-to-ico": "^3.0.1",
-    "sharp": "^0.35.1"
+    "sharp": "^0.35.5"
   }
 }
